@@ -336,8 +336,23 @@ Your brothers are nowhere in sight.`,
       name: "The Eastern Ridge",
       description: `The ridge road opens onto a wide plain. To the north the hills
 of Dothan are finally visible — and thin smoke rising from a campfire.
-To the east the land stretches flat and featureless.`,
-      exits: { west: "ridge_road_west", north: "dothan_fields", east: "open_desert" },
+A cluster of palm trees stands just ahead. To the east the land stretches
+flat and featureless.`,
+      exits: { west: "ridge_road_west", north: "palm_grove", east: "open_desert" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    palm_grove: {
+      id: "palm_grove",
+      name: "Shade of the Palm Trees",
+      restable: true,
+      restMessage: "You lean against a palm trunk and close your eyes. A cool breeze moves through the fronds. You feel steadier.",
+      description: `A small cluster of tall palms offers welcome shade. The ground
+here is softer than the road. Dothan is just to the north — you can
+almost hear the flocks. The ridge road lies back to the south.`,
+      exits: { south: "ridge_road_east", north: "dothan_fields" },
       items: [],
       visited: false,
       events: {}
@@ -437,7 +452,7 @@ In the dim light you notice a small clay lamp on a ledge.`,
 Ishmaelite merchants traveling to Egypt. Their camels are loaded with 
 spices and balm. The merchants are kind but firm. A cart sits ready. 
 Egypt lies to the west on a long road.`,
-      exits: { west: "egypt_road" },
+      exits: { west: "egypt_road", east: "flee_east" },
       items: ["bread_loaf"],
       visited: false,
       events: {
@@ -451,6 +466,37 @@ Egypt lies to the west on a long road.`,
               "The merchants pay twenty pieces of silver.",
               "You are free from the pit, but far from home.",
               "Judah takes your coat to show your father."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    flee_east: {
+      id: "flee_east",
+      name: "East of the Camp",
+      description: `Rocky scrubland stretches east. A large man leans against a
+boulder, arms folded, watching you with flat, unreadable eyes.
+The camel train is back to the west.`,
+      exits: { west: "merchants_camp" },
+      items: [],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.flee_caught) {
+            state.flags.flee_caught = true;
+            state.needs.tired = Math.min(100, state.needs.tired + 20);
+            state.needs.sad   = Math.min(100, state.needs.sad   + 15);
+            return [
+              "You break away from the camel train and run east, heart pounding.",
+              "But a rough, bearded man — bigger than any of the merchants —",
+              "steps out from behind a boulder.",
+              "He grabs your arm like iron.",
+              "Stranger: \"Going somewhere, boy?\"",
+              "He marches you back to the camel train without another word.",
+              "The merchants barely look up.",
+              "(You are back at the camp. The road to Egypt is west.)"
             ];
           }
           return [];
@@ -647,6 +693,25 @@ you will understand things others cannot.`,
 
 const SAVE_KEY = "joseph_adventure_v1";
 
+// Snapshot initial room state so restart can fully restore it
+const ROOM_INIT = {};
+for (const [id, room] of Object.entries(GAME.rooms)) {
+  ROOM_INIT[id] = {
+    items: [...room.items],
+    itemQty: room.itemQty ? { ...room.itemQty } : undefined
+  };
+}
+
+function resetRooms() {
+  for (const [id, room] of Object.entries(GAME.rooms)) {
+    const init = ROOM_INIT[id];
+    room.visited = false;
+    room.items = [...init.items];
+    if (init.itemQty) room.itemQty = { ...init.itemQty };
+    else delete room.itemQty;
+  }
+}
+
 function newState() {
   return {
     room: "canaan_home",
@@ -658,6 +723,7 @@ function newState() {
       pushed_in_pit: false,
       in_pit_narrated: false,
       brothers_no_coat: false,
+      flee_caught: false,
       pit_waited: false,
       sold_narrated: false,
       potiphar_seen: false
@@ -727,7 +793,7 @@ function tickNeeds() {
   const n = state.needs;
   n.thirsty = Math.min(100, n.thirsty + 2);
   n.hungry  = Math.min(100, n.hungry  + 1);
-  n.tired   = Math.min(100, n.tired   + 1 + state.inventory.length * 2);
+  n.tired   = Math.min(100, n.tired   + 0.5 + state.inventory.length * 1);
   n.sad     = Math.min(100, n.sad     + 0.5);
 }
 
@@ -1082,6 +1148,7 @@ function cmdStatus() {
 
 function cmdRestart() {
   state = newState();
+  resetRooms();
   try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
   output.innerHTML = "";
   intro();
