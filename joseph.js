@@ -388,6 +388,7 @@ The workmanship is beautiful. These are not yours.`,
 still pool. Date palms cast cool shadows. Butterflies drift from bloom to bloom.
 It is quiet here. The hall is to the east and the estate entrance to the north.`,
       exits: { north: "potiphar_gates", east: "potiphar_hall" },
+      exitBlocked: (state) => state.flags.wife_accosted && !state.flags.wife_done,
       items: [],
       visited: false,
       events: {
@@ -940,6 +941,11 @@ function cmdWalk(dir) {
   if (n.tired >= 100)  { print("You are too tired to walk. You must rest first.", "error"); return; }
 
   const room = GAME.rooms[state.room];
+  if (room.exitBlocked && room.exitBlocked(state)) {
+    print("Potiphar's wife is right here. You cannot simply walk away.", "error");
+    print("Type FLEE to run away, or FOLLOW WIFE to go with her.", "system");
+    return;
+  }
   const dest = room.exits[dir];
   if (!dest) {
     print(`You cannot walk ${dir} from here.`, "error");
