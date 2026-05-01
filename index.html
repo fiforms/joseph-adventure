@@ -157,26 +157,45 @@
   }
 
   #needs-bar {
-    font-size: 11px;
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 4px;
-    min-height: 0;
+    gap: 0;
+    padding: 6px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
   }
 
-  .need-badge {
-    padding: 1px 7px;
-    border-radius: 10px;
+  .need-indicator {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 10px;
+    border-left: 1px solid var(--border);
+  }
+
+  .need-indicator:first-child { border-left: none; padding-left: 0; }
+  .need-indicator:last-child  { padding-right: 0; }
+
+  .need-label {
     font-size: 10px;
+    color: var(--dim);
     letter-spacing: 1px;
     text-transform: uppercase;
-    border: 1px solid;
   }
 
-  .need-mild  { color: var(--dim);   border-color: var(--dim);   }
-  .need-bad   { color: var(--amber); border-color: var(--amber-dim); }
-  .need-crit  { color: var(--error); border-color: var(--error); }
+  .need-track {
+    height: 4px;
+    background: var(--bg);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .need-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s ease, background-color 0.4s ease;
+  }
 </style>
 </head>
 <body>
@@ -187,8 +206,9 @@
     Location: <span id="status-location">—</span>
     &nbsp;|&nbsp; Carrying: <span id="status-inv">nothing</span>
   </div>
-  <div id="needs-bar"></div>
 </div>
+
+<div id="needs-bar"></div>
 
 <div id="output"></div>
 
@@ -573,14 +593,19 @@ function updateStatus() {
     : "nothing";
 
   needsBar.innerHTML = "";
-  const labels = { thirsty: "Thirsty", hungry: "Hungry", tired: "Tired", sad: "Sad" };
+  const labels = { thirsty: "Thirst", hungry: "Hunger", tired: "Tiredness", sad: "Mood" };
   for (const [key, label] of Object.entries(labels)) {
-    const v = state.needs[key];
-    if (v < 30) continue;
-    const badge = document.createElement("span");
-    badge.className = "need-badge " + (v >= 76 ? "need-crit" : v >= 51 ? "need-bad" : "need-mild");
-    badge.textContent = label;
-    needsBar.appendChild(badge);
+    let v = Math.round(state.needs[key]);
+    // For mood, bar represents sadness; invert display so full bar = very sad
+    const pct = Math.min(100, Math.max(0, v));
+    const color = pct >= 76 ? "var(--error)" : pct >= 51 ? "var(--amber)" : "var(--green-dim)";
+
+    const ind = document.createElement("div");
+    ind.className = "need-indicator";
+    ind.innerHTML =
+      `<div class="need-label">${label}</div>` +
+      `<div class="need-track"><div class="need-fill" style="width:${pct}%;background-color:${color}"></div></div>`;
+    needsBar.appendChild(ind);
   }
 }
 
@@ -872,7 +897,7 @@ function cmdRest() {
 function cmdStatus() {
   printBlank();
   print("HOW JOSEPH FEELS", "heading");
-  const labels = { thirsty: "Thirsty", hungry: "Hungry", tired: "Tired", sad: "Sad" };
+  const labels = { thirsty: "Thirst", hungry: "Hunger", tired: "Tiredness", sad: "Mood" };
   const descs  = [
     [0,  29, "fine"],
     [30, 50, "a little"],
@@ -995,6 +1020,7 @@ function intro() {
 }
 
 intro();
+updateStatus();
 cmdInput.focus();
 </script>
 </body>
