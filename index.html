@@ -221,7 +221,7 @@
 <div id="help-bar">
   Commands: <kbd>look</kbd> <kbd>walk north/south/east/west</kbd> <kbd>take [item]</kbd>
   <kbd>drop [item]</kbd> <kbd>inspect [item]</kbd> <kbd>inventory</kbd>
-  <kbd>eat</kbd> <kbd>drink</kbd> <kbd>rest</kbd> <kbd>status</kbd> <kbd>help</kbd>
+  <kbd>eat</kbd> <kbd>drink</kbd> <kbd>rest</kbd> <kbd>status</kbd> <kbd>restart</kbd> <kbd>help</kbd>
 </div>
 
 <script>
@@ -708,6 +708,7 @@ function handleCommand(raw) {
     case "drink":      cmdDrink(arg); break;
     case "rest":       cmdRest(); break;
     case "status":     cmdStatus(); break;
+    case "restart":    cmdRestart(); break;
     case "help":       cmdHelp(); break;
     case "pray":       cmdSpecial("pray"); break;
     case "wait":       cmdSpecial("wait"); break;
@@ -748,6 +749,12 @@ function cmdLook() {
 
 function cmdWalk(dir) {
   if (!dir) { print("Walk where? Try: walk north, walk south, walk east, walk west.", "error"); return; }
+
+  const n = state.needs;
+  if (n.hungry >= 100) { print("You are too hungry to walk. You must eat something first.", "error"); return; }
+  if (n.thirsty >= 100) { print("You are too thirsty to walk. You must drink something first.", "error"); return; }
+  if (n.tired >= 100)  { print("You are too tired to walk. You must rest first.", "error"); return; }
+
   const room = GAME.rooms[state.room];
   const dest = room.exits[dir];
   if (!dest) {
@@ -933,17 +940,22 @@ function cmdDrink(arg) {
 
 function cmdRest() {
   const room = GAME.rooms[state.room];
-  if (!room.restable) {
-    print("This is not a safe place to rest. Keep moving.", "error");
-    return;
-  }
   if (state.needs.tired < 20) {
     print("You are not tired enough to rest right now.", "response");
     return;
   }
-  state.needs.tired = Math.max(0, state.needs.tired - 40);
-  state.needs.sad   = Math.max(0, state.needs.sad   - 5);
-  print(room.restMessage || "You rest for a while. You feel more refreshed.", "narration");
+  if (room.restable) {
+    state.needs.tired  = Math.max(0, state.needs.tired  - 40);
+    state.needs.hungry = Math.min(100, state.needs.hungry + 5);
+    state.needs.sad    = Math.max(0, state.needs.sad    - 5);
+    print(room.restMessage || "You rest for a while. You feel more refreshed.", "narration");
+  } else {
+    state.needs.tired  = Math.max(0, state.needs.tired  - 20);
+    state.needs.hungry = Math.min(100, state.needs.hungry + 10);
+    state.needs.sad    = Math.max(0, state.needs.sad    - 5);
+    print("You rest on the ground, one eye open. It is not comfortable, but your legs thank you.", "narration");
+    print("The uneasy rest leaves you hungrier than before.", "system");
+  }
 }
 
 function cmdStatus() {
@@ -968,6 +980,13 @@ function cmdStatus() {
   printBlank();
 }
 
+function cmdRestart() {
+  state = newState();
+  try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+  output.innerHTML = "";
+  intro();
+}
+
 function cmdHelp() {
   printBlank();
   print("COMMANDS", "heading");
@@ -984,6 +1003,7 @@ function cmdHelp() {
     ["status",            "See how Joseph is feeling"],
     ["pray",              "Pray (works in certain places)"],
     ["wait",              "Wait (sometimes things happen)"],
+    ["restart",           "Start the game over from the beginning"],
     ["help",              "Show this list"],
   ];
   cmds.forEach(([cmd, desc]) => {
