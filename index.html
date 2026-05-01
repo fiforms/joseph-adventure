@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Joseph in Egypt — A Bible Adventure</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Cinzel:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --panel: #0d1117;
+    --border: #1e2a1e;
+    --green: #4aff91;
+    --green-dim: #1a5c33;
+    --green-glow: rgba(74,255,145,0.15);
+    --amber: #ffb347;
+    --amber-dim: #7a4a10;
+    --white: #d4e8d4;
+    --dim: #4a6b4a;
+    --error: #ff6b6b;
+    --title: #c8a44a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #header {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+
+  #title {
+    font-family: 'Cinzel', serif;
+    color: var(--title);
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  #status-bar {
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  #status-bar span {
+    color: var(--amber);
+    margin-left: 12px;
+  }
+
+  #output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    scroll-behavior: smooth;
+  }
+
+  #output::-webkit-scrollbar { width: 6px; }
+  #output::-webkit-scrollbar-track { background: var(--bg); }
+  #output::-webkit-scrollbar-thumb { background: var(--green-dim); border-radius: 3px; }
+
+  .line {
+    margin-bottom: 6px;
+    line-height: 1.6;
+    animation: fadeIn 0.15s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(2px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .line.narration  { color: var(--white); }
+  .line.prompt     { color: var(--green); }
+  .line.response   { color: var(--green); }
+  .line.error      { color: var(--error); }
+  .line.heading    { color: var(--title); font-family: 'Cinzel', serif; font-size: 13px;
+                     letter-spacing: 1px; margin-top: 8px; margin-bottom: 4px; }
+  .line.system     { color: var(--dim); font-size: 12px; }
+  .line.spacer     { margin-bottom: 10px; }
+  .line.success    { color: var(--amber); }
+
+  #input-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+
+  #prompt-label {
+    color: var(--green);
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+
+  #cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    caret-color: var(--green);
+  }
+
+  #cmd-input::placeholder { color: var(--green-dim); }
+
+  #input-row::before {
+    content: '';
+    display: block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 10px;
+    animation: blink 1.2s step-end infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+
+  #help-bar {
+    padding: 5px 20px;
+    font-size: 11px;
+    color: var(--dim);
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+
+  #help-bar kbd {
+    background: var(--green-dim);
+    color: var(--green);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="title">Joseph in Egypt &mdash; A Bible Adventure</div>
+  <div id="status-bar">
+    Location: <span id="status-location">—</span>
+    &nbsp;|&nbsp; Carrying: <span id="status-inv">nothing</span>
+  </div>
+</div>
+
+<div id="output"></div>
+
+<div id="input-row">
+  <span id="prompt-label">&gt;</span>
+  <input id="cmd-input" type="text" autocomplete="off" autocorrect="off"
+         autocapitalize="off" spellcheck="false" placeholder="type a command..." />
+</div>
+
+<div id="help-bar">
+  Commands: <kbd>look</kbd> <kbd>walk north/south/east/west</kbd> <kbd>take [item]</kbd>
+  <kbd>drop [item]</kbd> <kbd>inspect [item]</kbd> <kbd>inventory</kbd> <kbd>help</kbd> <kbd>save</kbd> <kbd>load</kbd>
+</div>
+
+<script>
+// ─── GAME DATA ────────────────────────────────────────────────────────────────
+
+const GAME = {
+  title: "Joseph in Egypt",
+  version: "1.0",
+
+  // ── ROOMS ──────────────────────────────────────────────────────────────────
+  rooms: {
+    canaan_home: {
+      id: "canaan_home",
+      name: "Jacob's House in Canaan",
+      description: `You are inside your father Jacob's tent. Sunlight filters through the 
+woven walls. Your father sits nearby, his eyes full of love for you. 
+On a wooden chest rests your coat — a gift from your father, woven 
+with every color of the rainbow. Your brothers have left for the fields.`,
+      exits: { north: "canaan_fields" },
+      items: ["coat"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.coat_given) {
+            return ["Jacob speaks gently: \"My son Joseph, take your coat.\"",
+                    "\"Go check on your brothers in the fields.\""];
+          }
+          return [];
+        }
+      }
+    },
+
+    canaan_fields: {
+      id: "canaan_fields",
+      name: "The Fields of Canaan",
+      description: `Broad green fields stretch before you under a bright sky. 
+Sheep graze in the distance. A dusty road leads north toward Dothan. 
+The path home lies to the south.`,
+      exits: { south: "canaan_home", north: "dothan_road" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    dothan_road: {
+      id: "dothan_road",
+      name: "Road to Dothan",
+      description: `The road is long and hot. Ahead to the north you can see 
+the hills of Dothan where your brothers are grazing the flocks. 
+A man stands at a crossroads.`,
+      exits: { south: "canaan_fields", north: "dothan_fields" },
+      items: ["water_jug"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.met_stranger) {
+            state.flags.met_stranger = true;
+            return [
+              "A stranger approaches. He seems to know your brothers.",
+              "Stranger: \"Are you looking for your brothers?\"",
+              "Stranger: \"I saw them — they have moved on to Dothan.\"",
+              "He points north and walks away."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    dothan_fields: {
+      id: "dothan_fields",
+      name: "The Fields of Dothan",
+      description: `You arrive at Dothan. Your brothers are here with the flocks. 
+But their faces are not friendly. They whisper among themselves. 
+A dry pit — an empty cistern — yawns open in the earth nearby. 
+Your brother Reuben stands a little apart, looking troubled.`,
+      exits: { south: "dothan_road" },
+      items: ["stone"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.brothers_seen) {
+            state.flags.brothers_seen = true;
+            return [
+              "Your brothers see you coming from far off.",
+              "Simeon: \"Here comes the dreamer!\"",
+              "Levi: \"Let us see what becomes of his dreams.\"",
+              "Reuben steps forward quietly. He looks worried.",
+              "Reuben: \"Do not harm him. Throw him into the pit — nothing more.\""
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    the_pit: {
+      id: "the_pit",
+      name: "Inside the Pit",
+      description: `The world has gone dark. You are at the bottom of a dry pit. 
+The walls are stone and earth. Far above you can see a circle of sky. 
+Your coat is gone. You can hear your brothers eating and talking above. 
+In the dim light you notice a small clay lamp on a ledge.`,
+      exits: {},   // no exits — escape is event-driven
+      items: ["clay_lamp"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.in_pit_narrated) {
+            state.flags.in_pit_narrated = true;
+            state.inventory = state.inventory.filter(i => i !== "coat");
+            return [
+              "Your brothers seize you and strip off your coat!",
+              "They lower you into the empty pit.",
+              "It is dark. It is lonely. You pray.",
+              "(Your coat has been taken.)",
+              "Tip: inspect the lamp, then wait for something to change..."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    merchants_camp: {
+      id: "merchants_camp",
+      name: "Ishmaelite Merchants' Camp",
+      description: `You have been pulled from the pit and sold to a group of 
+Ishmaelite merchants traveling to Egypt. Their camels are loaded with 
+spices and balm. The merchants are kind but firm. A cart sits ready. 
+Egypt lies to the west on a long road.`,
+      exits: { west: "egypt_road" },
+      items: ["bread_loaf"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.sold_narrated) {
+            state.flags.sold_narrated = true;
+            return [
+              "Judah: \"What profit is it if we kill our brother?\"",
+              "\"Let us sell him to these Ishmaelites.\"",
+              "The merchants pay twenty pieces of silver.",
+              "You are free from the pit, but far from home.",
+              "Judah takes your coat to show your father."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    egypt_road: {
+      id: "egypt_road",
+      name: "The Road to Egypt",
+      description: `The desert stretches in every direction. The Nile Delta 
+shimmers ahead to the west. Behind you to the east is the merchants' camp. 
+The sun is fierce but you walk with hope in your heart.`,
+      exits: { east: "merchants_camp", west: "egypt_market" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    egypt_market: {
+      id: "egypt_market",
+      name: "The Market of Egypt",
+      description: `The great city of Egypt rises around you — enormous stone buildings, 
+busy markets, people in white linen. You are standing in a marketplace. 
+A man named Potiphar, captain of Pharaoh's guard, is inspecting servants. 
+He notices you. A scroll lies rolled up on a merchant's table.`,
+      exits: { east: "egypt_road" },
+      items: ["scroll"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.potiphar_seen) {
+            state.flags.potiphar_seen = true;
+            return [
+              "Potiphar watches you carefully.",
+              "Potiphar: \"This young man has something about him.\"",
+              "Potiphar: \"God is with him. I will buy him for my household.\"",
+              "",
+              "★  You have reached Egypt — Chapter One complete!  ★",
+              "The Lord was with Joseph, and he prospered.",
+              "  — Genesis 39:2"
+            ];
+          }
+          return [];
+        }
+      }
+    }
+  },
+
+  // ── ITEMS ──────────────────────────────────────────────────────────────────
+  items: {
+    coat: {
+      id: "coat",
+      name: "coat of many colors",
+      description: `A beautiful robe woven in stripes of red, blue, gold, and 
+green. Your father Jacob made it for you as a sign of his great love. 
+It is the most precious thing you own.`,
+      takeable: true,
+      fixed: false
+    },
+    water_jug: {
+      id: "water_jug",
+      name: "water jug",
+      description: `A clay jug, still cool to the touch. It holds fresh water — 
+a welcome thing on a long desert road.`,
+      takeable: true,
+      fixed: false
+    },
+    stone: {
+      id: "stone",
+      name: "stone",
+      description: `A smooth, flat stone from the field. Ordinary enough, 
+but it reminds you that God made even this dusty ground.`,
+      takeable: true,
+      fixed: false
+    },
+    clay_lamp: {
+      id: "clay_lamp",
+      name: "clay lamp",
+      description: `A small oil lamp made of clay. It flickers with a tiny flame, 
+giving just enough light to see the walls of the pit. 
+Even in the darkest place, a small light matters.`,
+      takeable: true,
+      fixed: false
+    },
+    bread_loaf: {
+      id: "bread_loaf",
+      name: "bread loaf",
+      description: `A round loaf of flatbread. The merchants have given you food 
+for the journey. Even in hardship, God provides.`,
+      takeable: true,
+      fixed: false
+    },
+    scroll: {
+      id: "scroll",
+      name: "scroll",
+      description: `A papyrus scroll. On it are Egyptian symbols — hieroglyphs. 
+You do not yet know this language, but you sense that one day 
+you will understand things others cannot.`,
+      takeable: true,
+      fixed: false
+    }
+  },
+
+  // ── SPECIAL COMMANDS (room-specific) ──────────────────────────────────────
+  specialCommands: {
+    dothan_fields: {
+      "inspect pit": (state) => {
+        if (!state.flags.brothers_seen) {
+          return { lines: ["You notice an empty cistern in the ground. It looks deep."] };
+        }
+        if (!state.flags.pushed_in_pit) {
+          state.flags.pushed_in_pit = true;
+          state.room = "the_pit";
+          const msgs = [
+            "You lean over to look into the pit.",
+            "Suddenly your brothers grab you from behind!",
+            "You tumble down into the darkness..."
+          ];
+          const enterMsgs = GAME.rooms["the_pit"].events.onEnter(state);
+          return { lines: [...msgs, ...enterMsgs], roomChanged: true };
+        }
+        return { lines: ["The pit is empty — you are in it."] };
+      }
+    },
+    the_pit: {
+      "pray": (state) => {
+        return { lines: [
+          "You cry out to God from the darkness.",
+          "Silence... but somehow you feel less alone.",
+          "You remember the dreams God gave you. They must mean something."
+        ]};
+      },
+      "wait": (state) => {
+        if (!state.flags.pit_waited) {
+          state.flags.pit_waited = true;
+          return { lines: [
+            "Time passes. Then you hear voices above — strangers.",
+            "Ishmaelite merchants! Your brother Judah is talking to them.",
+            "A rope drops into the pit.",
+            "You climb up. Your brothers sell you for twenty pieces of silver.",
+            "You are taken to the merchants' camp."
+          ], moveToRoom: "merchants_camp" };
+        }
+        return { lines: ["You wait. God has not forgotten you."] };
+      }
+    }
+  }
+};
+
+// ─── GAME STATE ───────────────────────────────────────────────────────────────
+
+const SAVE_KEY = "joseph_adventure_v1";
+
+function newState() {
+  return {
+    room: "canaan_home",
+    inventory: [],
+    flags: {
+      coat_given: false,
+      met_stranger: false,
+      brothers_seen: false,
+      pushed_in_pit: false,
+      in_pit_narrated: false,
+      pit_waited: false,
+      sold_narrated: false,
+      potiphar_seen: false
+    },
+    moves: 0
+  };
+}
+
+let state = newState();
+
+// ─── OUTPUT ───────────────────────────────────────────────────────────────────
+
+const output = document.getElementById("output");
+const cmdInput = document.getElementById("cmd-input");
+const statusLocation = document.getElementById("status-location");
+const statusInv = document.getElementById("status-inv");
+
+function print(text, cls = "response") {
+  const div = document.createElement("div");
+  div.className = "line " + cls;
+  div.textContent = text;
+  output.appendChild(div);
+  output.scrollTop = output.scrollHeight;
+}
+
+function printBlank() {
+  const div = document.createElement("div");
+  div.className = "line spacer";
+  div.innerHTML = "&nbsp;";
+  output.appendChild(div);
+}
+
+function printLines(lines, cls = "response") {
+  lines.forEach(l => {
+    if (l === "") printBlank();
+    else print(l, cls);
+  });
+}
+
+function updateStatus() {
+  const room = GAME.rooms[state.room];
+  statusLocation.textContent = room ? room.name : "—";
+  statusInv.textContent = state.inventory.length
+    ? state.inventory.map(i => GAME.items[i]?.name || i).join(", ")
+    : "nothing";
+}
+
+// ─── COMMAND PARSER ───────────────────────────────────────────────────────────
+
+function handleCommand(raw) {
+  const input = raw.trim().toLowerCase();
+  if (!input) return;
+
+  print("> " + raw, "prompt");
+  state.moves++;
+
+  const [verb, ...rest] = input.split(/\s+/);
+  const arg = rest.join(" ");
+
+  switch (verb) {
+    case "look":       cmdLook(); break;
+    case "walk":       cmdWalk(arg); break;
+    case "take":       cmdTake(arg); break;
+    case "drop":       cmdDrop(arg); break;
+    case "inspect":    cmdInspect(arg); break;
+    case "inventory":
+    case "inv":        cmdInventory(); break;
+    case "help":       cmdHelp(); break;
+    case "save":       cmdSave(); break;
+    case "load":       cmdLoad(); break;
+    case "pray":       cmdSpecial("pray"); break;
+    case "wait":       cmdSpecial("wait"); break;
+    case "climb":      cmdClimb(arg); break;
+    default:
+      // try full phrase as special command
+      if (!trySpecialCommand(input)) {
+        print(`Unknown command: "${verb}". Type HELP for a list of commands.`, "error");
+      }
+  }
+
+  updateStatus();
+}
+
+function cmdLook() {
+  const room = GAME.rooms[state.room];
+  printBlank();
+  print(room.name.toUpperCase(), "heading");
+  printBlank();
+  printLines(room.description.trim().split("\n").map(l => l.trim()), "narration");
+
+  if (room.items.length > 0) {
+    printBlank();
+    const names = room.items.map(id => GAME.items[id]?.name || id);
+    print("You can see: " + names.join(", ") + ".", "response");
+  }
+
+  const exits = Object.keys(room.exits);
+  if (exits.length > 0) {
+    print("Exits: " + exits.join(", ") + ".", "response");
+  } else {
+    print("There are no obvious exits.", "response");
+  }
+  printBlank();
+}
+
+function cmdWalk(dir) {
+  if (!dir) { print("Walk where? Try: walk north, walk south, walk east, walk west.", "error"); return; }
+  const room = GAME.rooms[state.room];
+  const dest = room.exits[dir];
+  if (!dest) {
+    print(`You cannot walk ${dir} from here.`, "error");
+    return;
+  }
+  moveToRoom(dest);
+}
+
+function cmdClimb(arg) {
+  print("You look around but find nothing to climb here.", "error");
+}
+
+function moveToRoom(roomId, extraLines = []) {
+  state.room = roomId;
+  const room = GAME.rooms[roomId];
+  printBlank();
+  print("— " + room.name + " —", "heading");
+  printBlank();
+
+  let enterLines = [];
+  if (room.events?.onEnter) {
+    enterLines = room.events.onEnter(state) || [];
+  }
+
+  // If not visited, show description
+  if (!room.visited) {
+    room.visited = true;
+    printLines(room.description.trim().split("\n").map(l => l.trim()), "narration");
+  }
+
+  if (enterLines.length) {
+    printBlank();
+    printLines(enterLines, "success");
+  }
+  if (extraLines.length) {
+    printBlank();
+    printLines(extraLines);
+  }
+
+  if (room.items.length > 0) {
+    printBlank();
+    const names = room.items.map(id => GAME.items[id]?.name || id);
+    print("You can see: " + names.join(", ") + ".", "response");
+  }
+
+  const exits = Object.keys(room.exits);
+  if (exits.length) print("Exits: " + exits.join(", ") + ".", "response");
+  else print("There are no obvious exits.", "response");
+
+  printBlank();
+}
+
+function cmdTake(arg) {
+  if (!arg) { print("Take what? Example: take coat", "error"); return; }
+  const room = GAME.rooms[state.room];
+  // find item by name match
+  const itemId = room.items.find(id => {
+    const item = GAME.items[id];
+    return item && (item.name === arg || item.id === arg || item.name.includes(arg));
+  });
+  if (!itemId) {
+    print(`There is no "${arg}" here to take.`, "error");
+    return;
+  }
+  const item = GAME.items[itemId];
+  if (!item.takeable) {
+    print(`You cannot take the ${item.name}.`, "error");
+    return;
+  }
+  room.items = room.items.filter(i => i !== itemId);
+  state.inventory.push(itemId);
+
+  // special flag for coat
+  if (itemId === "coat") state.flags.coat_given = true;
+
+  print(`You take the ${item.name}.`, "response");
+}
+
+function cmdDrop(arg) {
+  if (!arg) { print("Drop what? Example: drop coat", "error"); return; }
+  const itemId = state.inventory.find(id => {
+    const item = GAME.items[id];
+    return item && (item.name === arg || item.id === arg || item.name.includes(arg));
+  });
+  if (!itemId) {
+    print(`You are not carrying a "${arg}".`, "error");
+    return;
+  }
+  state.inventory = state.inventory.filter(i => i !== itemId);
+  GAME.rooms[state.room].items.push(itemId);
+  print(`You drop the ${GAME.items[itemId].name}.`, "response");
+}
+
+function cmdInspect(arg) {
+  if (!arg) { print("Inspect what? Example: inspect coat", "error"); return; }
+
+  // check inventory
+  let itemId = state.inventory.find(id => {
+    const item = GAME.items[id];
+    return item && (item.name === arg || item.id === arg || item.name.includes(arg));
+  });
+
+  // check room
+  if (!itemId) {
+    const room = GAME.rooms[state.room];
+    itemId = room.items.find(id => {
+      const item = GAME.items[id];
+      return item && (item.name === arg || item.id === arg || item.name.includes(arg));
+    });
+  }
+
+  if (!itemId) {
+    // try special inspect (like "pit")
+    if (!trySpecialCommand("inspect " + arg)) {
+      print(`You do not see a "${arg}" here.`, "error");
+    }
+    return;
+  }
+
+  const item = GAME.items[itemId];
+  printBlank();
+  print(item.name.toUpperCase(), "heading");
+  printLines(item.description.trim().split("\n").map(l => l.trim()), "narration");
+  printBlank();
+}
+
+function cmdInventory() {
+  if (state.inventory.length === 0) {
+    print("You are not carrying anything.", "response");
+    return;
+  }
+  print("You are carrying:", "response");
+  state.inventory.forEach(id => {
+    print("  • " + (GAME.items[id]?.name || id), "response");
+  });
+}
+
+function cmdHelp() {
+  printBlank();
+  print("COMMANDS", "heading");
+  const cmds = [
+    ["look",              "Describe your current location"],
+    ["walk [direction]",  "Move: north, south, east, west"],
+    ["take [item]",       "Pick up an item"],
+    ["drop [item]",       "Put down an item you are carrying"],
+    ["inspect [item]",    "Examine an item closely"],
+    ["inventory",         "List what you are carrying"],
+    ["pray",              "Pray (works in certain places)"],
+    ["wait",              "Wait (sometimes things happen)"],
+    ["save",              "Save your progress"],
+    ["load",              "Load your saved progress"],
+    ["help",              "Show this list"],
+  ];
+  cmds.forEach(([cmd, desc]) => {
+    print(`  ${cmd.padEnd(20)} ${desc}`, "system");
+  });
+  printBlank();
+  print("Syntax matters. Type commands exactly as shown.", "system");
+  printBlank();
+}
+
+function cmdSave() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    print("Progress saved.", "success");
+  } catch(e) {
+    print("Could not save — storage may be unavailable on this device.", "error");
+  }
+}
+
+function cmdLoad() {
+  try {
+    const saved = localStorage.getItem(SAVE_KEY);
+    if (!saved) { print("No saved game found.", "error"); return; }
+    state = JSON.parse(saved);
+    print("Game loaded.", "success");
+    printBlank();
+    cmdLook();
+  } catch(e) {
+    print("Could not load save data.", "error");
+  }
+}
+
+function cmdSpecial(fullCmd) {
+  trySpecialCommand(fullCmd);
+}
+
+function trySpecialCommand(input) {
+  const roomSpecials = GAME.specialCommands[state.room];
+  if (!roomSpecials) return false;
+
+  const handler = roomSpecials[input];
+  if (!handler) return false;
+
+  const result = handler(state);
+  if (result.lines) printLines(result.lines, "narration");
+  if (result.moveToRoom) moveToRoom(result.moveToRoom);
+  if (result.roomChanged) cmdLook();
+  return true;
+}
+
+// ─── INPUT HANDLER ────────────────────────────────────────────────────────────
+
+cmdInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    const val = cmdInput.value;
+    cmdInput.value = "";
+    handleCommand(val);
+  }
+});
+
+// keep focus on input
+document.addEventListener("click", () => cmdInput.focus());
+
+// ─── INTRO ────────────────────────────────────────────────────────────────────
+
+function intro() {
+  printBlank();
+  print("★  JOSEPH IN EGYPT  ★", "heading");
+  print("   A Bible Text Adventure", "heading");
+  printBlank();
+  printLines([
+    "The year is around 1700 BC. You are Joseph, son of Jacob,",
+    "beloved of your father and blessed with dreams from God.",
+    "Your story is about to begin."
+  ], "narration");
+  printBlank();
+  print("Type HELP to see all commands. Type LOOK to see where you are.", "system");
+  print("Syntax matters — type commands exactly as shown.", "system");
+  printBlank();
+  print("━".repeat(55), "system");
+  printBlank();
+  moveToRoom("canaan_home");
+}
+
+intro();
+cmdInput.focus();
+</script>
+</body>
+</html>
