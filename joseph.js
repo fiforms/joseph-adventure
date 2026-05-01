@@ -852,6 +852,21 @@ function cmdInventory() {
   inventoryNames().forEach(name => print("  • " + name, "response"));
 }
 
+const EAT_JOKES = [
+  (n) => `You bite the ${n}. It does not taste like food. Surprising.`,
+  (n) => `You try to eat the ${n}. Your stomach disagrees.`,
+  (n) => `The ${n} is not on the menu. Try looking for actual food.`,
+  (n) => `You chew on the ${n} for a moment. Nope.`,
+  (n) => `Even a very hungry person would not eat a ${n}.`,
+];
+const DRINK_JOKES = [
+  (n) => `You try to drink the ${n}. It is not a beverage.`,
+  (n) => `The ${n} refuses to be a drink, no matter how thirsty you are.`,
+  (n) => `You hold the ${n} up and wait. Nothing comes out.`,
+  (n) => `Drinking a ${n} is not something wise men recommend.`,
+  (n) => `The ${n} is many things. A drink is not one of them.`,
+];
+
 function cmdEat(arg) {
   const foodId = state.inventory.find(id => {
     const item = GAME.items[id];
@@ -859,8 +874,20 @@ function cmdEat(arg) {
     return !arg || item.name === arg || item.name.includes(arg);
   });
   if (!foodId) {
-    if (arg) print(`You are not carrying a "${arg}" to eat.`, "error");
-    else print("You have nothing to eat. Look for food on your journey.", "error");
+    if (arg) {
+      const wrongItem = state.inventory.find(id => {
+        const item = GAME.items[id];
+        return item && (item.name === arg || item.name.includes(arg));
+      });
+      if (wrongItem) {
+        const joke = EAT_JOKES[Math.floor(Math.random() * EAT_JOKES.length)];
+        print(joke(GAME.items[wrongItem].name), "error");
+      } else {
+        print(`You are not carrying a "${arg}" to eat.`, "error");
+      }
+    } else {
+      print("You have nothing to eat. Look for food on your journey.", "error");
+    }
     return;
   }
   const item = GAME.items[foodId];
@@ -876,8 +903,20 @@ function cmdDrink(arg) {
     return !arg || item.name === arg || item.name.includes(arg);
   });
   if (!drinkId) {
-    if (arg) print(`You are not carrying a "${arg}" to drink.`, "error");
-    else print("You have nothing to drink. Look for water on your journey.", "error");
+    if (arg) {
+      const wrongItem = state.inventory.find(id => {
+        const item = GAME.items[id];
+        return item && (item.name === arg || item.name.includes(arg));
+      });
+      if (wrongItem) {
+        const joke = DRINK_JOKES[Math.floor(Math.random() * DRINK_JOKES.length)];
+        print(joke(GAME.items[wrongItem].name), "error");
+      } else {
+        print(`You are not carrying a "${arg}" to drink.`, "error");
+      }
+    } else {
+      print("You have nothing to drink. Look for water on your journey.", "error");
+    }
     return;
   }
   const item = GAME.items[drinkId];
