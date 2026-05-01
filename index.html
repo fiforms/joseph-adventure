@@ -665,7 +665,8 @@ you will understand things others cannot.`,
     },
     the_pit: {
       "pray": (state) => {
-        state.needs.sad = Math.max(0, state.needs.sad - 20);
+        state.needs.sad   = Math.max(0, state.needs.sad   - 20);
+        state.needs.tired = Math.max(0, state.needs.tired - 5);
         return { lines: [
           "You cry out to God from the darkness.",
           "Silence... but somehow you feel less alone.",
@@ -876,7 +877,7 @@ function handleCommand(raw) {
     case "status":     cmdStatus(); break;
     case "restart":    cmdRestart(); break;
     case "help":       cmdHelp(); break;
-    case "pray":       cmdSpecial("pray"); break;
+    case "pray":       cmdPray(); break;
     case "wait":       cmdSpecial("wait"); break;
     case "climb":      cmdClimb(arg); break;
     default:
@@ -928,6 +929,14 @@ function cmdWalk(dir) {
     return;
   }
   moveToRoom(dest);
+}
+
+function cmdPray() {
+  if (!trySpecialCommand("pray")) {
+    state.needs.sad   = Math.max(0, state.needs.sad   - 10);
+    state.needs.tired = Math.max(0, state.needs.tired - 5);
+    print("You bow your head and pray. A quiet peace settles over you.", "narration");
+  }
 }
 
 function cmdClimb(arg) {
