@@ -158,12 +158,17 @@ looking troubled.`,
           if (!state.flags.brothers_seen) {
             state.flags.brothers_seen = true;
             if (state.inventory.includes("coat")) {
+              state.flags.pushed_in_pit = true;
+              state.room = "the_pit";
+              const enterMsgs = GAME.rooms["the_pit"].events.onEnter(state);
               return [
                 "Your brothers see you coming from far off.",
                 "Simeon: \"Here comes the dreamer!\"",
                 "Levi: \"Let us see what becomes of his dreams.\"",
-                "Reuben steps forward quietly. He looks worried.",
-                "Reuben: \"Do not harm him. Throw him into the pit — nothing more.\""
+                "Reuben steps forward quietly, looking worried.",
+                "Reuben: \"Do not harm him. Throw him into the pit — nothing more.\"",
+                "Before you can speak, your brothers rush toward you.",
+                ...enterMsgs
               ];
             } else {
               state.flags.brothers_no_coat = true;
@@ -726,6 +731,28 @@ function moveToRoom(roomId, extraLines = []) {
   let enterLines = [];
   if (room.events?.onEnter) {
     enterLines = room.events.onEnter(state) || [];
+  }
+
+  // onEnter may redirect to another room (e.g. auto-capture)
+  if (state.room !== roomId) {
+    if (enterLines.length) {
+      printBlank();
+      printLines(enterLines, "success");
+    }
+    const redirectRoom = GAME.rooms[state.room];
+    printBlank();
+    print("— " + redirectRoom.name + " —", "heading");
+    printBlank();
+    if (!redirectRoom.visited) {
+      redirectRoom.visited = true;
+      printLines(redirectRoom.description.trim().split("\n").map(l => l.trim()), "narration");
+    }
+    const redirectItems = Object.keys(redirectRoom.exits);
+    if (redirectItems.length === 0) {
+      printBlank();
+      print("There are no obvious exits.", "response");
+    }
+    return;
   }
 
   // If not visited, show description
