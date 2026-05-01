@@ -171,8 +171,10 @@ This mirrors the Biblical theme: Joseph could not escape by his own strength.
 ## File Structure
 
 ```
-joseph-adventure.html    ← the entire game (single file)
+index.html               ← game home 
 CLAUDE.md                ← this file
+joseph.css
+joseph.js
 ```
 
 ---
