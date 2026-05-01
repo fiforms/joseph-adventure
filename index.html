@@ -271,11 +271,11 @@ The path home lies to the south.`,
 
     dothan_road: {
       id: "dothan_road",
-      name: "Road to Dothan",
-      description: `The road is long and hot. Ahead to the north you can see 
-the hills of Dothan where your brothers are grazing the flocks. 
-A man stands at a crossroads.`,
-      exits: { south: "canaan_fields", north: "dothan_fields" },
+      name: "A Dusty Crossroads",
+      description: `Several paths meet here under a wide open sky. The air is dry
+and still. A few scraggly trees offer little shade. Roads lead north,
+east, and back south toward home.`,
+      exits: { south: "canaan_fields", east: "ridge_road_west", north: "valley_path" },
       items: ["water_jug"],
       visited: false,
       events: {
@@ -283,10 +283,10 @@ A man stands at a crossroads.`,
           if (!state.flags.met_stranger) {
             state.flags.met_stranger = true;
             return [
-              "A stranger approaches. He seems to know your brothers.",
-              "Stranger: \"Are you looking for your brothers?\"",
-              "Stranger: \"I saw them — they have moved on to Dothan.\"",
-              "He points north and walks away."
+              "A stranger resting under a tree stands up to greet you.",
+              "Stranger: \"Are you looking for your brothers? I saw them today.\"",
+              "Stranger: \"They went east along the ridge road, then north toward Dothan.\"",
+              "He points east and sits back down."
             ];
           }
           return [];
@@ -294,27 +294,101 @@ A man stands at a crossroads.`,
       }
     },
 
+    valley_path: {
+      id: "valley_path",
+      name: "Edge of the Ravine",
+      description: `The path ends at the lip of a deep ravine. You peer down into
+the shadows below — there is no way across and no way down safely.
+You scan the hills in every direction. No flocks. No smoke. No brothers.
+This is not the right way.`,
+      exits: { south: "dothan_road" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    ridge_road_west: {
+      id: "ridge_road_west",
+      name: "The Ridge Road",
+      description: `A hard-packed road runs east through dry yellow grass. Rocky
+hills rise sharply to the north. The crossroads lies back to the west.`,
+      exits: { west: "dothan_road", east: "ridge_road_east", north: "rocky_slopes" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    rocky_slopes: {
+      id: "rocky_slopes",
+      name: "Rocky Slopes",
+      description: `Enormous boulders tumble down from a steep mountainside. The
+path disappears into the rocks — there is no way through and no way up.
+You can see far in every direction from here. Dry hills, empty sky.
+Your brothers are nowhere in sight.`,
+      exits: { south: "ridge_road_west" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    ridge_road_east: {
+      id: "ridge_road_east",
+      name: "The Eastern Ridge",
+      description: `The ridge road opens onto a wide plain. To the north the hills
+of Dothan are finally visible — and thin smoke rising from a campfire.
+To the east the land stretches flat and featureless.`,
+      exits: { west: "ridge_road_west", north: "dothan_fields", east: "open_desert" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    open_desert: {
+      id: "open_desert",
+      name: "The Open Desert",
+      description: `The plain gives way to empty desert. No trees, no water, no
+people. Heat shimmers off the cracked ground. You shade your eyes and
+look as far as you can — nothing. Your brothers are certainly not here.`,
+      exits: { west: "ridge_road_east" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
     dothan_fields: {
       id: "dothan_fields",
       name: "The Fields of Dothan",
-      description: `You arrive at Dothan. Your brothers are here with the flocks. 
-But their faces are not friendly. They whisper among themselves. 
-A dry pit — an empty cistern — yawns open in the earth nearby. 
-Your brother Reuben stands a little apart, looking troubled.`,
-      exits: { south: "dothan_road" },
+      description: `You arrive at the fields of Dothan. Your brothers are here
+with the flocks, gathered near a fire. A dry pit — an empty cistern —
+yawns open in the earth nearby. Your brother Reuben stands a little apart,
+looking troubled.`,
+      exits: { south: "ridge_road_east" },
       items: ["stone"],
       visited: false,
       events: {
         onEnter: (state) => {
           if (!state.flags.brothers_seen) {
             state.flags.brothers_seen = true;
-            return [
-              "Your brothers see you coming from far off.",
-              "Simeon: \"Here comes the dreamer!\"",
-              "Levi: \"Let us see what becomes of his dreams.\"",
-              "Reuben steps forward quietly. He looks worried.",
-              "Reuben: \"Do not harm him. Throw him into the pit — nothing more.\""
-            ];
+            if (state.inventory.includes("coat")) {
+              return [
+                "Your brothers see you coming from far off.",
+                "Simeon: \"Here comes the dreamer!\"",
+                "Levi: \"Let us see what becomes of his dreams.\"",
+                "Reuben steps forward quietly. He looks worried.",
+                "Reuben: \"Do not harm him. Throw him into the pit — nothing more.\""
+              ];
+            } else {
+              state.flags.brothers_no_coat = true;
+              state.needs.sad = Math.min(100, state.needs.sad + 25);
+              return [
+                "Your brothers do not recognize you without your coat.",
+                "You watch from a distance, your heart heavy.",
+                "These are your brothers — you love them — but they do not know you.",
+                "Simeon laughs loudly at something. Levi throws a stone into the pit.",
+                "Reuben sits apart, staring at the ground.",
+                "You could reveal yourself to them, or simply walk away."
+              ];
+            }
           }
           return [];
         }
@@ -335,14 +409,17 @@ In the dim light you notice a small clay lamp on a ledge.`,
         onEnter: (state) => {
           if (!state.flags.in_pit_narrated) {
             state.flags.in_pit_narrated = true;
+            const hadCoat = state.inventory.includes("coat");
             state.inventory = state.inventory.filter(i => i !== "coat");
             state.needs.sad = Math.min(100, state.needs.sad + 30);
             state.needs.thirsty = Math.min(100, state.needs.thirsty + 15);
+            const lines = hadCoat
+              ? ["Your brothers seize you and strip off your coat!", "(Your coat has been taken.)"]
+              : ["Your brothers seize you!"];
             return [
-              "Your brothers seize you and strip off your coat!",
+              ...lines,
               "They lower you into the empty pit.",
               "It is dark. It is lonely. You pray.",
-              "(Your coat has been taken.)",
               "Tip: inspect the lamp, then wait for something to change..."
             ];
           }
@@ -504,6 +581,9 @@ you will understand things others cannot.`,
         if (!state.flags.brothers_seen) {
           return { lines: ["You notice an empty cistern in the ground. It looks deep."] };
         }
+        if (state.flags.brothers_no_coat) {
+          return { lines: ["A deep, empty cistern. Your brothers have not noticed you looking at it."] };
+        }
         if (!state.flags.pushed_in_pit) {
           state.flags.pushed_in_pit = true;
           state.room = "the_pit";
@@ -516,6 +596,25 @@ you will understand things others cannot.`,
           return { lines: [...msgs, ...enterMsgs], roomChanged: true };
         }
         return { lines: ["The pit is empty — you are in it."] };
+      },
+      "reveal": (state) => {
+        if (!state.flags.brothers_no_coat) {
+          return { lines: ["Your brothers already know who you are."] };
+        }
+        state.flags.brothers_no_coat = false;
+        state.flags.pushed_in_pit = true;
+        state.room = "the_pit";
+        state.needs.sad = Math.min(100, state.needs.sad + 15);
+        const msgs = [
+          "You step forward into the open.",
+          "\"Brothers — it is me. It is Joseph.\"",
+          "A moment of silence. Then recognition darkens into anger.",
+          "Simeon: \"The dreamer himself! He followed us here!\"",
+          "They rush toward you before you can move.",
+          "You tumble down into the darkness..."
+        ];
+        const enterMsgs = GAME.rooms["the_pit"].events.onEnter(state);
+        return { lines: [...msgs, ...enterMsgs], roomChanged: true };
       }
     },
     the_pit: {
@@ -558,6 +657,7 @@ function newState() {
       brothers_seen: false,
       pushed_in_pit: false,
       in_pit_narrated: false,
+      brothers_no_coat: false,
       pit_waited: false,
       sold_narrated: false,
       potiphar_seen: false
@@ -1001,6 +1101,7 @@ function cmdHelp() {
     ["drink",             "Drink from something in your inventory"],
     ["rest",              "Rest (only in safe places)"],
     ["status",            "See how Joseph is feeling"],
+    ["reveal",            "Reveal yourself (works in certain places)"],
     ["pray",              "Pray (works in certain places)"],
     ["wait",              "Wait (sometimes things happen)"],
     ["restart",           "Start the game over from the beginning"],
