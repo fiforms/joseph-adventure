@@ -1,0 +1,462 @@
+{
+  title: "Joseph in Egypt",
+  version: "1.0",
+
+  // ── ROOMS ──────────────────────────────────────────────────────────────────
+  rooms: {
+    canaan_home: {
+      id: "canaan_home",
+      name: "Jacob's House in Canaan",
+      restable: true,
+      restMessage: "You lie down on your sleeping mat. The familiar smells of home wrap around you like a blanket.",
+      itemQty: { food_bag: 20, water_jug: 4 },
+      description: `You are inside your father Jacob's tent. Sunlight filters through the 
+woven walls. Your father sits nearby, his eyes full of love for you. 
+On a wooden chest rests your coat — a gift from your father, woven 
+with every color of the rainbow. Your brothers have left for the fields.`,
+      exits: { north: "canaan_fields" },
+      items: ["coat", "food_bag", "water_jug"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.coat_given) {
+            return ["Jacob speaks gently: \"My son Joseph, take your coat.\"",
+                    "\"Go check on your brothers in the fields.\""];
+          }
+          return [];
+        }
+      }
+    },
+
+    canaan_fields: {
+      id: "canaan_fields",
+      name: "The Fields of Canaan",
+      description: `Broad green fields stretch before you under a bright sky. 
+Sheep graze in the distance. A dusty road leads north toward Dothan. 
+The path home lies to the south.`,
+      exits: { south: "canaan_home", north: "dothan_road" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    dothan_road: {
+      id: "dothan_road",
+      name: "A Dusty Crossroads",
+      description: `Several paths meet here under a wide open sky. The air is dry
+and still. A few scraggly trees offer little shade. Roads lead north,
+east, and back south toward home.`,
+      exits: { south: "canaan_fields", east: "ridge_road_west", north: "valley_path" },
+      items: ["water_jug"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.met_stranger) {
+            state.flags.met_stranger = true;
+            return [
+              "A stranger resting under a tree stands up to greet you.",
+              "Stranger: \"Are you looking for your brothers? I saw them today.\"",
+              "Stranger: \"They went east along the ridge road, then north toward Dothan.\"",
+              "He points east and sits back down."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    valley_path: {
+      id: "valley_path",
+      name: "Edge of the Ravine",
+      description: `The path ends at the lip of a deep ravine. You peer down into
+the shadows below — there is no way across and no way down safely.
+You scan the hills in every direction. No flocks. No smoke. No brothers.
+This is not the right way.`,
+      exits: { south: "dothan_road" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    ridge_road_west: {
+      id: "ridge_road_west",
+      name: "The Ridge Road",
+      description: `A hard-packed road runs east through dry yellow grass. Rocky
+hills rise sharply to the north. The crossroads lies back to the west.`,
+      exits: { west: "dothan_road", east: "ridge_road_east", north: "rocky_slopes" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    rocky_slopes: {
+      id: "rocky_slopes",
+      name: "Rocky Slopes",
+      description: `Enormous boulders tumble down from a steep mountainside. The
+path disappears into the rocks — there is no way through and no way up.
+You can see far in every direction from here. Dry hills, empty sky.
+Your brothers are nowhere in sight.`,
+      exits: { south: "ridge_road_west" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    ridge_road_east: {
+      id: "ridge_road_east",
+      name: "The Eastern Ridge",
+      description: `The ridge road opens onto a wide plain. To the north the hills
+of Dothan are finally visible — and thin smoke rising from a campfire.
+A cluster of palm trees stands just ahead. To the east the land stretches
+flat and featureless.`,
+      exits: { west: "ridge_road_west", north: "palm_grove", east: "open_desert" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    palm_grove: {
+      id: "palm_grove",
+      name: "Shade of the Palm Trees",
+      restable: true,
+      restMessage: "You lean against a palm trunk and close your eyes. A cool breeze moves through the fronds. You feel steadier.",
+      description: `A small cluster of tall palms offers welcome shade. The ground
+here is softer than the road. Dothan is just to the north — you can
+almost hear the flocks. The ridge road lies back to the south.`,
+      exits: { south: "ridge_road_east", north: "dothan_fields" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    open_desert: {
+      id: "open_desert",
+      name: "The Open Desert",
+      description: `The plain gives way to empty desert. No trees, no water, no
+people. Heat shimmers off the cracked ground. You shade your eyes and
+look as far as you can — nothing. Your brothers are certainly not here.`,
+      exits: { west: "ridge_road_east" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    dothan_fields: {
+      id: "dothan_fields",
+      name: "The Fields of Dothan",
+      description: `You arrive at the fields of Dothan. Your brothers are here
+with the flocks, gathered near a fire. A dry pit — an empty cistern —
+yawns open in the earth nearby. Your brother Reuben stands a little apart,
+looking troubled.`,
+      exits: { south: "ridge_road_east" },
+      items: ["stone"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.brothers_seen) {
+            state.flags.brothers_seen = true;
+            if (state.inventory.includes("coat")) {
+              return [
+                "Your brothers see you coming from far off.",
+                "Simeon: \"Here comes the dreamer!\"",
+                "Levi: \"Let us see what becomes of his dreams.\"",
+                "Reuben steps forward quietly. He looks worried.",
+                "Reuben: \"Do not harm him. Throw him into the pit — nothing more.\""
+              ];
+            } else {
+              state.flags.brothers_no_coat = true;
+              state.needs.sad = Math.min(100, state.needs.sad + 25);
+              return [
+                "Your brothers do not recognize you without your coat.",
+                "You watch from a distance, your heart heavy.",
+                "These are your brothers — you love them — but they do not know you.",
+                "Simeon laughs loudly at something. Levi throws a stone into the pit.",
+                "Reuben sits apart, staring at the ground.",
+                "You could reveal yourself to them, or simply walk away."
+              ];
+            }
+          }
+          return [];
+        }
+      }
+    },
+
+    the_pit: {
+      id: "the_pit",
+      name: "Inside the Pit",
+      description: `The world has gone dark. You are at the bottom of a dry pit. 
+The walls are stone and earth. Far above you can see a circle of sky. 
+Your coat is gone. You can hear your brothers eating and talking above. 
+In the dim light you notice a small clay lamp on a ledge.`,
+      exits: {},   // no exits — escape is event-driven
+      items: ["clay_lamp"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.in_pit_narrated) {
+            state.flags.in_pit_narrated = true;
+            const hadCoat = state.inventory.includes("coat");
+            state.inventory = state.inventory.filter(i => i !== "coat");
+            state.needs.sad = Math.min(100, state.needs.sad + 30);
+            state.needs.thirsty = Math.min(100, state.needs.thirsty + 15);
+            const lines = hadCoat
+              ? ["Your brothers seize you and strip off your coat!", "(Your coat has been taken.)"]
+              : ["Your brothers seize you!"];
+            return [
+              ...lines,
+              "They lower you into the empty pit.",
+              "It is dark. It is lonely. You pray.",
+              "Tip: inspect the lamp, then wait for something to change..."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    merchants_camp: {
+      id: "merchants_camp",
+      name: "Ishmaelite Merchants' Camp",
+      restable: true,
+      restMessage: "You sit against a palm tree and close your eyes. The camels breathe slowly nearby.",
+      description: `You have been pulled from the pit and sold to a group of 
+Ishmaelite merchants traveling to Egypt. Their camels are loaded with 
+spices and balm. The merchants are kind but firm. A cart sits ready. 
+Egypt lies to the west on a long road.`,
+      exits: { west: "egypt_road", east: "flee_east" },
+      items: ["bread_loaf"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.sold_narrated) {
+            state.flags.sold_narrated = true;
+            state.needs.sad = Math.min(100, state.needs.sad + 20);
+            return [
+              "Judah: \"What profit is it if we kill our brother?\"",
+              "\"Let us sell him to these Ishmaelites.\"",
+              "The merchants pay twenty pieces of silver.",
+              "You are free from the pit, but far from home.",
+              "Judah takes your coat to show your father."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    flee_east: {
+      id: "flee_east",
+      name: "East of the Camp",
+      description: `Rocky scrubland stretches east. A large man leans against a
+boulder, arms folded, watching you with flat, unreadable eyes.
+The camel train is back to the west.`,
+      exits: { west: "merchants_camp" },
+      items: [],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.flee_caught) {
+            state.flags.flee_caught = true;
+            state.needs.tired = Math.min(100, state.needs.tired + 20);
+            state.needs.sad   = Math.min(100, state.needs.sad   + 15);
+            return [
+              "You break away from the camel train and run east, heart pounding.",
+              "But a rough, bearded man — bigger than any of the merchants —",
+              "steps out from behind a boulder.",
+              "He grabs your arm like iron.",
+              "Stranger: \"Going somewhere, boy?\"",
+              "He marches you back to the camel train without another word.",
+              "The merchants barely look up.",
+              "(You are back at the camp. The road to Egypt is west.)"
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    egypt_road: {
+      id: "egypt_road",
+      name: "The Road to Egypt",
+      description: `The desert stretches in every direction. The Nile Delta 
+shimmers ahead to the west. Behind you to the east is the merchants' camp. 
+The sun is fierce but you walk with hope in your heart.`,
+      exits: { east: "merchants_camp", west: "egypt_market" },
+      items: [],
+      visited: false,
+      events: {}
+    },
+
+    egypt_market: {
+      id: "egypt_market",
+      name: "The Market of Egypt",
+      description: `The great city of Egypt rises around you — enormous stone buildings, 
+busy markets, people in white linen. You are standing in a marketplace. 
+A man named Potiphar, captain of Pharaoh's guard, is inspecting servants. 
+He notices you. A scroll lies rolled up on a merchant's table.`,
+      exits: { east: "egypt_road" },
+      items: ["scroll"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.potiphar_seen) {
+            state.flags.potiphar_seen = true;
+            return [
+              "Potiphar watches you carefully.",
+              "Potiphar: \"This young man has something about him.\"",
+              "Potiphar: \"God is with him. I will buy him for my household.\"",
+              "",
+              "★  You have reached Egypt — Chapter One complete!  ★",
+              "The Lord was with Joseph, and he prospered.",
+              "  — Genesis 39:2"
+            ];
+          }
+          return [];
+        }
+      }
+    }
+  },
+
+  // ── ITEMS ──────────────────────────────────────────────────────────────────
+  items: {
+    coat: {
+      id: "coat",
+      name: "coat of many colors",
+      description: `A beautiful robe woven in stripes of red, blue, gold, and 
+green. Your father Jacob made it for you as a sign of his great love. 
+It is the most precious thing you own.`,
+      takeable: true,
+      fixed: false
+    },
+    water_jug: {
+      id: "water_jug",
+      name: "water jug",
+      plural: "jugs of water",
+      description: `A clay jug, still cool to the touch. It holds fresh water —
+a welcome thing on a long desert road.`,
+      takeable: true,
+      fixed: false,
+      consumable: "drink",
+      hydration: 55,
+      stackable: true
+    },
+    stone: {
+      id: "stone",
+      name: "stone",
+      description: `A smooth, flat stone from the field. Ordinary enough, 
+but it reminds you that God made even this dusty ground.`,
+      takeable: true,
+      fixed: false
+    },
+    clay_lamp: {
+      id: "clay_lamp",
+      name: "clay lamp",
+      description: `A small oil lamp made of clay. It flickers with a tiny flame, 
+giving just enough light to see the walls of the pit. 
+Even in the darkest place, a small light matters.`,
+      takeable: true,
+      fixed: false
+    },
+    bread_loaf: {
+      id: "bread_loaf",
+      name: "bread loaf",
+      description: `A round loaf of flatbread. The merchants have given you food
+for the journey. Even in hardship, God provides.`,
+      takeable: true,
+      fixed: false,
+      consumable: "food",
+      nourishment: 45
+    },
+    food_bag: {
+      id: "food_bag",
+      name: "bag of food",
+      plural: "bags of food",
+      description: `A cloth bag filled with dried figs, grain, and flatbread —
+enough for one good meal. Your mother packed these before you left home.
+Carry too many and your feet will grow heavy.`,
+      takeable: true,
+      fixed: false,
+      consumable: "food",
+      nourishment: 40,
+      stackable: true
+    },
+    scroll: {
+      id: "scroll",
+      name: "scroll",
+      description: `A papyrus scroll. On it are Egyptian symbols — hieroglyphs. 
+You do not yet know this language, but you sense that one day 
+you will understand things others cannot.`,
+      takeable: true,
+      fixed: false
+    }
+  },
+
+  // ── SPECIAL COMMANDS (room-specific) ──────────────────────────────────────
+  specialCommands: {
+    dothan_fields: {
+      "inspect pit": (state) => {
+        if (!state.flags.brothers_seen) {
+          return { lines: ["You notice an empty cistern in the ground. It looks deep."] };
+        }
+        if (state.flags.brothers_no_coat) {
+          return { lines: ["A deep, empty cistern. Your brothers have not noticed you looking at it."] };
+        }
+        if (!state.flags.pushed_in_pit) {
+          state.flags.pushed_in_pit = true;
+          state.room = "the_pit";
+          const msgs = [
+            "You lean over to look into the pit.",
+            "Suddenly your brothers grab you from behind!",
+            "You tumble down into the darkness..."
+          ];
+          const enterMsgs = GAME.rooms["the_pit"].events.onEnter(state);
+          return { lines: [...msgs, ...enterMsgs], roomChanged: true };
+        }
+        return { lines: ["The pit is empty — you are in it."] };
+      },
+      "reveal": (state) => {
+        if (!state.flags.brothers_no_coat) {
+          return { lines: ["Your brothers already know who you are."] };
+        }
+        state.flags.brothers_no_coat = false;
+        state.flags.pushed_in_pit = true;
+        state.room = "the_pit";
+        state.needs.sad = Math.min(100, state.needs.sad + 15);
+        const msgs = [
+          "You step forward into the open.",
+          "\"Brothers — it is me. It is Joseph.\"",
+          "A moment of silence. Then recognition darkens into anger.",
+          "Simeon: \"The dreamer himself! He followed us here!\"",
+          "They rush toward you before you can move.",
+          "You tumble down into the darkness..."
+        ];
+        const enterMsgs = GAME.rooms["the_pit"].events.onEnter(state);
+        return { lines: [...msgs, ...enterMsgs], roomChanged: true };
+      }
+    },
+    the_pit: {
+      "pray": (state) => {
+        state.needs.sad   = Math.max(0, state.needs.sad   - 20);
+        state.needs.tired = Math.max(0, state.needs.tired - 5);
+        return { lines: [
+          "You cry out to God from the darkness.",
+          "Silence... but somehow you feel less alone.",
+          "You remember the dreams God gave you. They must mean something."
+        ]};
+      },
+      "wait": (state) => {
+        if (!state.flags.pit_waited) {
+          state.flags.pit_waited = true;
+          return { lines: [
+            "Time passes. Then you hear voices above — strangers.",
+            "Ishmaelite merchants! Your brother Judah is talking to them.",
+            "A rope drops into the pit.",
+            "You climb up. Your brothers sell you for twenty pieces of silver.",
+            "You are taken to the merchants' camp."
+          ], moveToRoom: "merchants_camp" };
+        }
+        return { lines: ["You wait. God has not forgotten you."] };
+      }
+    }
+  }
+}
