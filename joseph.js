@@ -297,11 +297,11 @@ The sun is fierce but you walk with hope in your heart.`,
     egypt_market: {
       id: "egypt_market",
       name: "The Market of Egypt",
-      description: `The great city of Egypt rises around you — enormous stone buildings, 
-busy markets, people in white linen. You are standing in a marketplace. 
-A man named Potiphar, captain of Pharaoh's guard, is inspecting servants. 
+      description: `The great city of Egypt rises around you — enormous stone buildings,
+busy markets, people in white linen. You are standing in a marketplace.
+A man named Potiphar, captain of Pharaoh's guard, is inspecting servants.
 He notices you. A scroll lies rolled up on a merchant's table.`,
-      exits: { east: "egypt_road" },
+      exits: { east: "egypt_road", north: "potiphar_gates" },
       items: ["scroll"],
       visited: false,
       events: {
@@ -313,9 +313,163 @@ He notices you. A scroll lies rolled up on a merchant's table.`,
               "Potiphar: \"This young man has something about him.\"",
               "Potiphar: \"God is with him. I will buy him for my household.\"",
               "",
-              "★  You have reached Egypt — Chapter One complete!  ★",
+              "★  You have reached Egypt — Level 1 complete!  ★",
+              "Walk north to follow Potiphar to his estate.",
               "The Lord was with Joseph, and he prospered.",
               "  — Genesis 39:2"
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    potiphar_gates: {
+      id: "potiphar_gates",
+      name: "Potiphar's Estate",
+      description: `Tall stone walls surround a grand Egyptian estate. Date palms
+line the shaded path. Ahead to the north is the great hall. A peaceful
+garden lies to the west. A servant in white linen bows as you pass.`,
+      exits: { south: "egypt_market", north: "potiphar_hall", west: "potiphar_garden" },
+      items: [],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.arrived_potiphar) {
+            state.flags.arrived_potiphar = true;
+            state.level = 2;
+            return [
+              "★  Level 2 — Potiphar's House  ★",
+              "",
+              "Potiphar leads you through the gate of his great estate.",
+              "Potiphar: \"You will manage my whole household. I trust you, Joseph.\"",
+              "Potiphar: \"God is clearly with you, so I am putting everything in your hands.\"",
+              "Potiphar: \"The hall, the garden, the storerooms — all yours to care for.\"",
+              "He glances back with a serious look.",
+              "Potiphar: \"But remember: everything here belongs to me. Touch nothing that is not yours.\"",
+              "He strides away on Pharaoh's business.",
+              "Explore the hall to the north or the garden to the west."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    potiphar_hall: {
+      id: "potiphar_hall",
+      name: "The Great Hall",
+      description: `Tall stone pillars reach up to a painted ceiling of blue and gold.
+Woven rugs cover the floor. On a carved wooden table sits a gleaming gold cup —
+Potiphar's finest. A jeweled necklace rests on a velvet stand nearby.
+The workmanship is beautiful. These are not yours.`,
+      exits: { south: "potiphar_gates", west: "potiphar_garden" },
+      items: ["gold_cup", "gem_necklace"],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.hall_warned) {
+            state.flags.hall_warned = true;
+            return [
+              "A small sign hangs on the wall — you cannot read Egyptian well, but a",
+              "passing servant translates quietly: \"These belong to the master. Do not touch.\"",
+              "You remember Potiphar's words. What is his is his."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    potiphar_garden: {
+      id: "potiphar_garden",
+      name: "The Garden",
+      description: `A peaceful garden stretches before you. Lotus flowers float on a
+still pool. Date palms cast cool shadows. Butterflies drift from bloom to bloom.
+It is quiet here. The hall is to the east and the estate entrance to the north.`,
+      exits: { north: "potiphar_gates", east: "potiphar_hall" },
+      items: [],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (state.flags.arrived_potiphar && !state.flags.wife_accosted && !state.flags.wife_done) {
+            state.flags.wife_accosted = true;
+            return [
+              "You step into the garden to tend the flowers.",
+              "Potiphar's wife steps out from behind the palms.",
+              "Wife: \"Joseph! Good. I have been hoping to find you alone.\"",
+              "Wife: \"Come inside with me. Your master is away. No one will know.\"",
+              "She is asking you to do something wrong — to disobey Potiphar and dishonor God.",
+              "Something feels very wrong.",
+              "You could follow her, or you could flee."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    prison_dead: {
+      id: "prison_dead",
+      name: "The Prison",
+      description: `Cold stone walls. Iron bars. The smell of damp earth.
+Other prisoners sit in the shadows, their faces tired and sad.
+The door is locked. There are no exits.`,
+      exits: {},
+      items: [],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.prison_dead_narrated) {
+            state.flags.prison_dead_narrated = true;
+            const reason = state.flags.joseph_stole
+              ? "Potiphar's guard caught you taking what was not yours."
+              : state.flags.wife_followed
+              ? "You made a wrong choice, and Potiphar had you thrown in prison."
+              : "Potiphar believed his wife's false story.";
+            return [
+              reason,
+              "You have been thrown in prison.",
+              "",
+              "This path has come to a dead end.",
+              "Sometimes the choices we make close doors that cannot be reopened.",
+              "",
+              "Type RESTART to begin the story again."
+            ];
+          }
+          return [];
+        }
+      }
+    },
+
+    prison_honor: {
+      id: "prison_honor",
+      name: "The Prison",
+      description: `Cold stone walls. Iron bars. But somehow, even here,
+you feel that God has not forgotten you. Other prisoners watch you
+with curious eyes. A small window lets in a sliver of light from above.`,
+      exits: {},
+      items: [],
+      visited: false,
+      events: {
+        onEnter: (state) => {
+          if (!state.flags.prison_honor_narrated) {
+            state.flags.prison_honor_narrated = true;
+            return [
+              "You ran. You did the right thing, even though it cost you everything.",
+              "Potiphar was angry. He believed his wife's story, not yours.",
+              "The guards led you away in chains.",
+              "",
+              "But the Lord was with Joseph, even in prison.",
+              "",
+              "The prison warden watched you carefully — day after day.",
+              "Warden: \"There is something different about this young man.\"",
+              "Warden: \"God is with him. I will put him in charge of the other prisoners.\"",
+              "",
+              "★  Level 2 complete — well done!  ★",
+              "You chose what was right, even when it was hard.",
+              "\"The Lord was with Joseph and gave him success in whatever he did.\"",
+              "  — Genesis 39:23"
             ];
           }
           return [];
@@ -390,11 +544,27 @@ Carry too many and your feet will grow heavy.`,
     scroll: {
       id: "scroll",
       name: "scroll",
-      description: `A papyrus scroll. On it are Egyptian symbols — hieroglyphs. 
-You do not yet know this language, but you sense that one day 
+      description: `A papyrus scroll. On it are Egyptian symbols — hieroglyphs.
+You do not yet know this language, but you sense that one day
 you will understand things others cannot.`,
       takeable: true,
       fixed: false
+    },
+    gold_cup: {
+      id: "gold_cup",
+      name: "gold cup",
+      description: `A gleaming cup made of pure gold, engraved with lotus flowers
+and the name of Potiphar. Beautiful — and clearly not yours.`,
+      takeable: true,
+      stealable: true
+    },
+    gem_necklace: {
+      id: "gem_necklace",
+      name: "gem necklace",
+      description: `A necklace strung with lapis lazuli and carnelian stones — deep
+blue and red. It belongs to Potiphar's household. You have been told not to touch it.`,
+      takeable: true,
+      stealable: true
     }
   },
 
@@ -464,6 +634,63 @@ you will understand things others cannot.`,
         }
         return { lines: ["You wait. God has not forgotten you."] };
       }
+    },
+    potiphar_garden: {
+      "follow wife": (state) => {
+        if (!state.flags.wife_accosted) {
+          return { lines: ["There is no one here to follow."] };
+        }
+        if (state.flags.wife_done) {
+          return { lines: ["Potiphar's wife is not here."] };
+        }
+        state.flags.wife_done = true;
+        state.flags.wife_followed = true;
+        state.room = "prison_dead";
+        const enterMsgs = GAME.rooms["prison_dead"].events.onEnter(state);
+        return { lines: [
+          "You follow Potiphar's wife inside.",
+          "You know it is wrong, but you do it anyway.",
+          "Later, Potiphar comes home. His wife tells him a false story.",
+          "Potiphar's face goes dark with anger.",
+          "Potiphar: \"Take him to the prison!\"",
+          ...enterMsgs
+        ], roomChanged: true };
+      },
+      "flee": (state) => {
+        if (!state.flags.wife_accosted) {
+          return { lines: ["There is nothing to flee from."] };
+        }
+        if (state.flags.wife_done) {
+          return { lines: ["You are safe here now."] };
+        }
+        state.flags.wife_done = true;
+        state.flags.wife_fled = true;
+        state.room = "prison_honor";
+        const enterMsgs = GAME.rooms["prison_honor"].events.onEnter(state);
+        return { lines: [
+          "\"I will not do this wrong thing!\" you cry out.",
+          "You turn and run as fast as you can.",
+          "Potiphar's wife grabs your outer robe, but you pull free and keep running.",
+          "When Potiphar returns, she holds up your robe and tells a lie.",
+          "Potiphar has you thrown in prison.",
+          "But you know — and God knows — that you did what was right.",
+          ...enterMsgs
+        ], roomChanged: true };
+      },
+      "run": (state) => {
+        return GAME.specialCommands.potiphar_garden["flee"](state);
+      },
+      "inspect wife": (state) => {
+        if (!state.flags.wife_accosted || state.flags.wife_done) {
+          return { lines: ["There is no one here right now."] };
+        }
+        return { lines: [
+          "Potiphar's wife smiles, but her eyes are not kind.",
+          "She is asking you to do something that would dishonor Potiphar and dishonor God.",
+          "You feel it in your heart: this is not right.",
+          "You could flee, or you could follow her."
+        ]};
+      }
     }
   }
 };
@@ -505,8 +732,18 @@ function newState() {
       flee_caught: false,
       pit_waited: false,
       sold_narrated: false,
-      potiphar_seen: false
+      potiphar_seen: false,
+      arrived_potiphar: false,
+      hall_warned: false,
+      wife_accosted: false,
+      wife_done: false,
+      wife_followed: false,
+      wife_fled: false,
+      joseph_stole: false,
+      prison_dead_narrated: false,
+      prison_honor_narrated: false
     },
+    level: 1,
     moves: 0,
     needs: { thirsty: 20, hungry: 15, tired: 10, sad: 15 },
     needsWarned: {}
@@ -521,6 +758,7 @@ const output = document.getElementById("output");
 const cmdInput = document.getElementById("cmd-input");
 const statusLocation = document.getElementById("status-location");
 const statusInv = document.getElementById("status-inv");
+const statusLevel = document.getElementById("status-level");
 
 function print(text, cls = "response") {
   const div = document.createElement("div");
@@ -550,6 +788,7 @@ function updateStatus() {
   const room = GAME.rooms[state.room];
   statusLocation.textContent = room ? room.name : "—";
   statusInv.textContent = state.inventory.length ? inventoryNames().join(", ") : "nothing";
+  if (statusLevel) statusLevel.textContent = state.level ?? 1;
 
   needsBar.innerHTML = "";
   const labels = { thirsty: "Thirst", hungry: "Hunger", tired: "Tiredness", sad: "Mood" };
@@ -810,6 +1049,18 @@ function cmdTake(arg) {
     state.inventory.push(itemId);
     if (itemId === "coat") state.flags.coat_given = true;
     print(`You take the ${item.name}.`, "response");
+    if (item.stealable) {
+      state.flags.joseph_stole = true;
+      printBlank();
+      printLines([
+        "As your hand closes around it, you hear footsteps behind you.",
+        "A guard steps in from the doorway. He saw everything.",
+        "Guard: \"Put that down. You will answer to Potiphar.\"",
+        "Your heart sinks. You knew this was wrong.",
+        "(Potiphar has you thrown into prison.)"
+      ], "narration");
+      moveToRoom("prison_dead");
+    }
   }
 }
 
