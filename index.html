@@ -238,12 +238,13 @@ const GAME = {
       name: "Jacob's House in Canaan",
       restable: true,
       restMessage: "You lie down on your sleeping mat. The familiar smells of home wrap around you like a blanket.",
+      itemQty: { food_bag: 20, water_jug: 4 },
       description: `You are inside your father Jacob's tent. Sunlight filters through the 
 woven walls. Your father sits nearby, his eyes full of love for you. 
 On a wooden chest rests your coat — a gift from your father, woven 
 with every color of the rainbow. Your brothers have left for the fields.`,
       exits: { north: "canaan_fields" },
-      items: ["coat"],
+      items: ["coat", "food_bag", "water_jug"],
       visited: false,
       events: {
         onEnter: (state) => {
@@ -436,12 +437,14 @@ It is the most precious thing you own.`,
     water_jug: {
       id: "water_jug",
       name: "water jug",
+      plural: "jugs of water",
       description: `A clay jug, still cool to the touch. It holds fresh water —
 a welcome thing on a long desert road.`,
       takeable: true,
       fixed: false,
       consumable: "drink",
-      hydration: 55
+      hydration: 55,
+      stackable: true
     },
     stone: {
       id: "stone",
@@ -469,6 +472,19 @@ for the journey. Even in hardship, God provides.`,
       fixed: false,
       consumable: "food",
       nourishment: 45
+    },
+    food_bag: {
+      id: "food_bag",
+      name: "bag of food",
+      plural: "bags of food",
+      description: `A cloth bag filled with dried figs, grain, and flatbread —
+enough for one good meal. Your mother packed these before you left home.
+Carry too many and your feet will grow heavy.`,
+      takeable: true,
+      fixed: false,
+      consumable: "food",
+      nourishment: 40,
+      stackable: true
     },
     scroll: {
       id: "scroll",
@@ -588,9 +604,7 @@ const needsBar = document.getElementById("needs-bar");
 function updateStatus() {
   const room = GAME.rooms[state.room];
   statusLocation.textContent = room ? room.name : "—";
-  statusInv.textContent = state.inventory.length
-    ? state.inventory.map(i => GAME.items[i]?.name || i).join(", ")
-    : "nothing";
+  statusInv.textContent = state.inventory.length ? inventoryNames().join(", ") : "nothing";
 
   needsBar.innerHTML = "";
   const labels = { thirsty: "Thirst", hungry: "Hunger", tired: "Tiredness", sad: "Mood" };
@@ -640,6 +654,33 @@ function checkNeedsWarnings() {
       delete state.needsWarned[warnKey];
     }
   }
+}
+
+// ─── ITEM HELPERS ─────────────────────────────────────────────────────────────
+
+function removeOneFromInventory(itemId) {
+  const idx = state.inventory.indexOf(itemId);
+  if (idx !== -1) state.inventory.splice(idx, 1);
+}
+
+function roomItemNames(room) {
+  return room.items.map(id => {
+    const item = GAME.items[id];
+    if (!item) return id;
+    const qty = room.itemQty?.[id];
+    if (qty !== undefined && qty > 1) return `${qty} ${item.plural || item.name + "s"}`;
+    return item.name;
+  });
+}
+
+function inventoryNames() {
+  const counts = {};
+  for (const id of state.inventory) counts[id] = (counts[id] || 0) + 1;
+  return Object.entries(counts).map(([id, n]) => {
+    const item = GAME.items[id];
+    if (!item) return id;
+    return n > 1 ? `${n} ${item.plural || item.name + "s"}` : item.name;
+  });
 }
 
 // ─── COMMAND PARSER ───────────────────────────────────────────────────────────
@@ -692,7 +733,7 @@ function cmdLook() {
 
   if (room.items.length > 0) {
     printBlank();
-    const names = room.items.map(id => GAME.items[id]?.name || id);
+    const names = roomItemNames(room);
     print("You can see: " + names.join(", ") + ".", "response");
   }
 
@@ -749,7 +790,7 @@ function moveToRoom(roomId, extraLines = []) {
 
   if (room.items.length > 0) {
     printBlank();
-    const names = room.items.map(id => GAME.items[id]?.name || id);
+    const names = roomItemNames(room);
     print("You can see: " + names.join(", ") + ".", "response");
   }
 
@@ -763,27 +804,31 @@ function moveToRoom(roomId, extraLines = []) {
 function cmdTake(arg) {
   if (!arg) { print("Take what? Example: take coat", "error"); return; }
   const room = GAME.rooms[state.room];
-  // find item by name match
   const itemId = room.items.find(id => {
     const item = GAME.items[id];
     return item && (item.name === arg || item.id === arg || item.name.includes(arg));
   });
-  if (!itemId) {
-    print(`There is no "${arg}" here to take.`, "error");
-    return;
-  }
+  if (!itemId) { print(`There is no "${arg}" here to take.`, "error"); return; }
   const item = GAME.items[itemId];
-  if (!item.takeable) {
-    print(`You cannot take the ${item.name}.`, "error");
-    return;
+  if (!item.takeable) { print(`You cannot take the ${item.name}.`, "error"); return; }
+
+  if (item.stackable) {
+    const qty = room.itemQty?.[itemId] ?? 1;
+    if (qty <= 1) {
+      room.items = room.items.filter(i => i !== itemId);
+      if (room.itemQty) delete room.itemQty[itemId];
+    } else {
+      room.itemQty[itemId] = qty - 1;
+    }
+    state.inventory.push(itemId);
+    const left = room.itemQty?.[itemId] ?? 0;
+    print(`You take a ${item.name}.${left > 0 ? " (" + left + " left here)" : ""}`, "response");
+  } else {
+    room.items = room.items.filter(i => i !== itemId);
+    state.inventory.push(itemId);
+    if (itemId === "coat") state.flags.coat_given = true;
+    print(`You take the ${item.name}.`, "response");
   }
-  room.items = room.items.filter(i => i !== itemId);
-  state.inventory.push(itemId);
-
-  // special flag for coat
-  if (itemId === "coat") state.flags.coat_given = true;
-
-  print(`You take the ${item.name}.`, "response");
 }
 
 function cmdDrop(arg) {
@@ -792,13 +837,22 @@ function cmdDrop(arg) {
     const item = GAME.items[id];
     return item && (item.name === arg || item.id === arg || item.name.includes(arg));
   });
-  if (!itemId) {
-    print(`You are not carrying a "${arg}".`, "error");
-    return;
+  if (!itemId) { print(`You are not carrying a "${arg}".`, "error"); return; }
+
+  const item = GAME.items[itemId];
+  removeOneFromInventory(itemId);
+  const room = GAME.rooms[state.room];
+
+  if (item.stackable) {
+    room.itemQty = room.itemQty || {};
+    if (!room.items.includes(itemId)) room.items.push(itemId);
+    room.itemQty[itemId] = (room.itemQty[itemId] || 0) + 1;
+    const qty = room.itemQty[itemId];
+    print(`You put down a ${item.name}.${qty > 1 ? " (" + qty + " here now)" : ""}`, "response");
+  } else {
+    room.items.push(itemId);
+    print(`You drop the ${item.name}.`, "response");
   }
-  state.inventory = state.inventory.filter(i => i !== itemId);
-  GAME.rooms[state.room].items.push(itemId);
-  print(`You drop the ${GAME.items[itemId].name}.`, "response");
 }
 
 function cmdInspect(arg) {
@@ -840,9 +894,7 @@ function cmdInventory() {
     return;
   }
   print("You are carrying:", "response");
-  state.inventory.forEach(id => {
-    print("  • " + (GAME.items[id]?.name || id), "response");
-  });
+  inventoryNames().forEach(name => print("  • " + name, "response"));
 }
 
 function cmdEat(arg) {
@@ -857,7 +909,7 @@ function cmdEat(arg) {
     return;
   }
   const item = GAME.items[foodId];
-  state.inventory = state.inventory.filter(i => i !== foodId);
+  removeOneFromInventory(foodId);
   state.needs.hungry = Math.max(0, state.needs.hungry - item.nourishment);
   print(`You eat the ${item.name}. It fills your stomach. You feel better.`, "response");
 }
@@ -874,7 +926,7 @@ function cmdDrink(arg) {
     return;
   }
   const item = GAME.items[drinkId];
-  state.inventory = state.inventory.filter(i => i !== drinkId);
+  removeOneFromInventory(drinkId);
   state.needs.thirsty = Math.max(0, state.needs.thirsty - item.hydration);
   print(`You drink from the ${item.name}. Cool water runs down your throat. Much better.`, "response");
 }
