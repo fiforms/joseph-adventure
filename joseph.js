@@ -229,8 +229,9 @@ In the dim light you notice a small clay lamp on a ledge.`,
       description: `You have been pulled from the pit and sold to a group of 
 Ishmaelite merchants traveling to Egypt. Their camels are loaded with 
 spices and balm. The merchants are kind but firm. A cart sits ready. 
-Egypt lies to the west on a long road.`,
-      exits: { west: "egypt_road", east: "flee_east" },
+To get to Egypt you will travel west, then south, on a long road. 
+You look to the east. Perhaps there's still a chance to flee...`,
+      exits: { west: "desert_road", east: "flee_east" },
       items: ["bread_loaf"],
       visited: false,
       events: {
@@ -282,16 +283,60 @@ The camel train is back to the west.`,
       }
     },
 
+    desert_road: {
+      id: "desert_road",
+      name: "The Desert Road",
+      description: `The camel train moves steadily west along a dusty road. The
+desert stretches in every direction. The sun beats down on you. The merchants are quiet, 
+but you can feel their eyes on you. You look back east at the camp —
+it is getting smaller and smaller. You are leaving it all behind.`,
+      exits: { east: "merchants_camp", south: "egypt_road" },
+      items: [],
+    },
     egypt_road: {
       id: "egypt_road",
       name: "The Road to Egypt",
-      description: `The desert stretches in every direction. The Nile Delta 
-shimmers ahead to the west. Behind you to the east is the merchants' camp. 
+      description: `The desert stretches in every direction. The long road leads south toward Egypt. The merchants are quiet, but you can feel their eyes on you. You look back north at the camp — it is getting smaller and smaller. You are leaving it all behind.
+      Every step you take, it seems the road goes on endlessly 
 The sun is fierce but you walk with hope in your heart.`,
-      exits: { east: "merchants_camp", west: "egypt_market" },
+      exits: { north: "desert_road", south: "egypt_road" },
       items: [],
       visited: false,
-      events: {}
+      events: {
+        onEnter: (state) => {
+          if (state.flags.on_camel) {
+            state.room = "egypt_market";
+            return [
+              "The camel sways beneath you. You drift in and out of sleep.",
+              "Through half-closed eyes you see enormous stone buildings rising ahead.",
+              "The great city of Egypt.",
+            ];
+          }
+
+          if (!state.flags.egypt_road_steps) state.flags.egypt_road_steps = 0;
+          state.flags.egypt_road_steps++;
+          const step = state.flags.egypt_road_steps;
+
+          state.needs.tired   = Math.min(100, state.needs.tired   + 18);
+          state.needs.thirsty = Math.min(100, state.needs.thirsty + 15);
+          state.needs.hungry  = Math.min(100, state.needs.hungry  + 10);
+          state.needs.sad     = Math.min(100, state.needs.sad     + 5);
+
+          const messages = [
+            ["The road stretches endlessly south.", "Your sandals scrape the hot stones."],
+            ["The sun beats down without mercy.", "One foot in front of the other."],
+            ["A merchant mutters something you cannot understand.", "You keep walking."],
+            ["You think of your father, far away in Canaan.", "You keep walking."],
+            ["The desert shimmers in the heat.", "Still the road goes on."],
+            ["Your mouth is dry. Your feet ache.", "Still you walk."],
+            ["The merchant's camels groan and plod ahead.", "You follow."],
+            ["You wonder how much farther Egypt can be.", "The answer is: farther."],
+            ["A hawk circles high overhead.", "You are very small in this desert."],
+            ["The rope around your wrists chafes. You ignore it.", "Keep walking."],
+          ];
+          return messages[(step - 1) % messages.length];
+        }
+      }
     },
 
     egypt_market: {
@@ -299,10 +344,15 @@ The sun is fierce but you walk with hope in your heart.`,
       name: "The Market of Egypt",
       description: `The great city of Egypt rises around you — enormous stone buildings,
 busy markets, people in white linen. You are standing in a marketplace.
+There is food and water for sale, but you have no money. You are a slave in a foreign land.
+The merchants have pity on you and offer to give you a little food and water.
 A man named Potiphar, captain of Pharaoh's guard, is inspecting servants.
 He notices you. A scroll lies rolled up on a merchant's table.`,
       exits: { east: "egypt_road", north: "potiphar_gates" },
-      items: ["scroll"],
+      items: ["scroll", "bread_loaf", "water_jug"],
+      itemQty: { bread_loaf: 2, water_jug: 2 },
+      restable: true,
+      restMessage: "You sink to the ground against a market stall. The noise of Egypt surrounds you, but for a moment you close your eyes.",
       visited: false,
       events: {
         onEnter: (state) => {
@@ -435,7 +485,7 @@ The door is locked. There are no exits.`,
               "This path has come to a dead end.",
               "Sometimes the choices we make close doors that cannot be reopened.",
               "",
-              "Type RESTART to begin the story again."
+              "But even here, God has not forgotten you."
             ];
           }
           return [];
@@ -636,6 +686,15 @@ blue and red. It belongs to Potiphar's household. You have been told not to touc
         return { lines: ["You wait. God has not forgotten you."] };
       }
     },
+    egypt_road: {
+      "rest": (state) => {
+        return { lines: [
+          "You slow your steps, hoping to stop.",
+          "A guard prods you from behind. \"Keep moving, slave.\"",
+          "You have no choice but to walk on.",
+        ]};
+      }
+    },
     potiphar_garden: {
       "follow wife": (state) => {
         if (!state.flags.wife_accosted) {
@@ -792,7 +851,7 @@ function updateStatus() {
   if (statusLevel) statusLevel.textContent = state.level ?? 1;
 
   needsBar.innerHTML = "";
-  const labels = { thirsty: "Thirst", hungry: "Hunger", tired: "Tiredness", sad: "Mood" };
+  const labels = { thirsty: "Thirst", hungry: "Hunger", tired: "Tiredness", sad: "Sadness" };
   for (const [key, label] of Object.entries(labels)) {
     let v = Math.round(state.needs[key]);
     // For mood, bar represents sadness; invert display so full bar = very sad
@@ -810,9 +869,9 @@ function updateStatus() {
 
 function tickNeeds() {
   const n = state.needs;
-  n.thirsty = Math.min(100, n.thirsty + 2);
-  n.hungry  = Math.min(100, n.hungry  + 1);
-  n.tired   = Math.min(100, n.tired   + 0.5 + state.inventory.length * 1);
+  n.thirsty = Math.min(100, n.thirsty + 2.5);
+  n.hungry  = Math.min(100, n.hungry  + 1.5);
+  n.tired   = Math.min(100, n.tired   + 2 + state.inventory.length * 1);
   n.sad     = Math.min(100, n.sad     + 0.5);
 }
 
@@ -936,6 +995,28 @@ function cmdWalk(dir) {
   if (!dir) { print("Walk where? Try: walk north, walk south, walk east, walk west.", "error"); return; }
 
   const n = state.needs;
+  const blocked = n.hungry >= 100 || n.thirsty >= 100 || n.tired >= 100;
+
+  if (state.room === "egypt_road" && dir === "south" && blocked && !state.flags.on_camel) {
+    state.flags.egypt_road_failed_walks = (state.flags.egypt_road_failed_walks || 0) + 1;
+    if (state.flags.egypt_road_failed_walks >= 3) {
+      state.flags.on_camel = true;
+      state.needs.tired   = 85;
+      state.needs.hungry  = 85;
+      state.needs.thirsty = 85;
+      state.inventory = [];
+      printBlank();
+      printLines([
+        "Your legs give out. You fall to your knees in the dust.",
+        "A guard shouts something. Two merchants lift you onto a camel.",
+        "\"He will be no use to us dead,\" one mutters.",
+        "You are too weak to resist. The camel's slow rhythm carries you south.",
+        "Walk south to continue into Egypt.",
+      ], "narration");
+      return;
+    }
+  }
+
   if (n.hungry >= 100) { print("You are too hungry to walk. You must eat something first.", "error"); return; }
   if (n.thirsty >= 100) { print("You are too thirsty to walk. You must drink something first.", "error"); return; }
   if (n.tired >= 100)  { print("You are too tired to walk. You must rest first.", "error"); return; }
@@ -957,7 +1038,7 @@ function cmdWalk(dir) {
 function cmdPray() {
   if (!trySpecialCommand("pray")) {
     state.needs.sad   = Math.max(0, state.needs.sad   - 10);
-    state.needs.tired = Math.max(0, state.needs.tired - 5);
+    state.needs.tired = Math.max(0, state.needs.tired - 10);
     print("You bow your head and pray. A quiet peace settles over you.", "narration");
   }
 }
@@ -1232,7 +1313,7 @@ function cmdRest() {
 function cmdStatus() {
   printBlank();
   print("HOW JOSEPH FEELS", "heading");
-  const labels = { thirsty: "Thirst", hungry: "Hunger", tired: "Tiredness", sad: "Mood" };
+  const labels = { thirsty: "Thirst", hungry: "Hunger", tired: "Tiredness", sad: "Sadness" };
   const descs  = [
     [0,  29, "fine"],
     [30, 50, "a little"],
@@ -1271,10 +1352,10 @@ function cmdHelp() {
     ["inventory",         "List what you are carrying"],
     ["eat",               "Eat food from your inventory"],
     ["drink",             "Drink from something in your inventory"],
-    ["rest",              "Rest (only in safe places)"],
+    ["rest",              "Rest (try to rest in safe places)"],
     ["status",            "See how Joseph is feeling"],
     ["reveal",            "Reveal yourself (works in certain places)"],
-    ["pray",              "Pray (works in certain places)"],
+    ["pray",              "Pray"],
     ["wait",              "Wait (sometimes things happen)"],
     ["restart",           "Start the game over from the beginning"],
     ["help",              "Show this list"],
